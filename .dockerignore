@@ -1,0 +1,16 @@
+node_modules
+dist
+tests
+*.test.ts
+*.spec.ts
+.git
+.gitignore
+.env
+.env.*
+README.md
+docker-compose.yml
+prometheus.yml
+coverage
+.DS_Store
+pnpm-lock.yaml
+

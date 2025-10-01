@@ -1,0 +1,149 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: eventhub
+      POSTGRES_USER: eventhub
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-changeme}
+      # Performance tuning
+      POSTGRES_SHARED_BUFFERS: 2GB
+      POSTGRES_EFFECTIVE_CACHE_SIZE: 6GB
+      POSTGRES_WORK_MEM: 16MB
+      POSTGRES_MAINTENANCE_WORK_MEM: 512MB
+      POSTGRES_MAX_CONNECTIONS: 150
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U eventhub"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: "4.0"
+          memory: 8G
+        reservations:
+          cpus: "2.0"
+          memory: 4G
+
+  api:
+    build: .
+    command: pnpm run start:api
+    environment:
+      NODE_ENV: production
+      DB_HOST: postgres
+      DB_NAME: eventhub
+      DB_USER: eventhub
+      DB_PASSWORD: ${DB_PASSWORD:-changeme}
+      PORT: 3000
+      WORKER_ID: api-${HOSTNAME}
+    ports:
+      - "3000-3001:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+        reservations:
+          cpus: "0.5"
+          memory: 256M
+    restart: unless-stopped
+
+  fanout:
+    build: .
+    command: pnpm run start:fanout
+    environment:
+      NODE_ENV: production
+      DB_HOST: postgres
+      DB_NAME: eventhub
+      DB_USER: eventhub
+      DB_PASSWORD: ${DB_PASSWORD:-changeme}
+      WORKER_ID: fanout-${HOSTNAME}
+      POLL_INTERVAL_MS: 100
+      BATCH_SIZE: 50
+    depends_on:
+      postgres:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+        reservations:
+          cpus: "0.25"
+          memory: 128M
+    restart: unless-stopped
+
+  dispatcher:
+    build: .
+    command: pnpm run start:dispatcher
+    environment:
+      NODE_ENV: production
+      DB_HOST: postgres
+      DB_NAME: eventhub
+      DB_USER: eventhub
+      DB_PASSWORD: ${DB_PASSWORD:-changeme}
+      WORKER_ID: dispatcher-${HOSTNAME}
+      POLL_INTERVAL_MS: 100
+      BATCH_SIZE: 20
+      WEBHOOK_TIMEOUT_MS: 10000
+    depends_on:
+      postgres:
+        condition: service_healthy
+    deploy:
+      replicas: 4
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+        reservations:
+          cpus: "0.5"
+          memory: 256M
+    restart: unless-stopped
+
+  cleanup:
+    build: .
+    command: pnpm run start:cleanup
+    environment:
+      NODE_ENV: production
+      DB_HOST: postgres
+      DB_NAME: eventhub
+      DB_USER: eventhub
+      DB_PASSWORD: ${DB_PASSWORD:-changeme}
+      STALE_TIMEOUT_SECONDS: 60
+      CHECK_INTERVAL_MS: 60000
+    depends_on:
+      postgres:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 128M
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  prometheus_data:
