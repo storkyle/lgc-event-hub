@@ -7,11 +7,12 @@ WORKDIR /app
 RUN corepack enable && corepack prepare pnpm@8.15.0 --activate
 
 # Copy package files
-COPY package.json pnpm-lock.yaml ./
+COPY ./package.json ./
+COPY ./pnpm-lock.yaml ./
 COPY tsconfig.json ./
 
 # Install dependencies
-RUN pnpm install --frozen-lockfile
+RUN pnpm install
 
 # Copy source
 COPY src ./src
@@ -31,7 +32,7 @@ RUN corepack enable && corepack prepare pnpm@8.15.0 --activate
 COPY package.json pnpm-lock.yaml ./
 
 # Install production dependencies only
-RUN pnpm install --prod --frozen-lockfile
+RUN pnpm install --prod
 
 # Copy compiled code from builder
 COPY --from=builder /app/dist ./dist

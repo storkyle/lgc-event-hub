@@ -12,5 +12,4 @@ docker-compose.yml
 prometheus.yml
 coverage
 .DS_Store
-pnpm-lock.yaml
 
