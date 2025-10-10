@@ -43,6 +43,7 @@ services:
       DB_USER: eventhub
       DB_PASSWORD: ${DB_PASSWORD:-changeme}
       PORT: 3000
+      X_SERVICE_TOKEN: ${X_SERVICE_TOKEN:-changeme}
       WORKER_ID: api-${HOSTNAME}
     ports:
       - "4004:3000"
