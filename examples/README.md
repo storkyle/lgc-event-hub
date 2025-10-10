@@ -61,7 +61,7 @@ INSERT INTO subscribers (
   3,
   ARRAY[5, 30, 300],
   true,
-  'admin'
+  '5c53872a-4cff-40ec-8041-3ee859eb1e38'
 );
 
 -- Kiểm tra subscriber đã được tạo
@@ -220,7 +220,7 @@ Consumer sẽ nhận events theo đúng thứ tự 1, 2, 3, 4, 5.
 ### Consumer không nhận webhook
 
 1. Kiểm tra consumer đang chạy: `curl http://localhost:4000/health`
-2. Kiểm tra subscriber đã được tạo: 
+2. Kiểm tra subscriber đã được tạo:
    ```sql
    SELECT * FROM subscribers WHERE is_active = true;
    ```
@@ -233,6 +233,7 @@ Consumer sẽ nhận events theo đúng thứ tự 1, 2, 3, 4, 5.
 ### Events stuck ở status "pending"
 
 Kiểm tra fan-out worker đang chạy:
+
 ```bash
 docker-compose logs fanout
 ```
@@ -240,9 +241,9 @@ docker-compose logs fanout
 ### Messages stuck ở status "delivering"
 
 Kiểm tra dispatcher workers:
+
 ```bash
 docker-compose logs dispatcher
 ```
 
 Cleanup worker sẽ tự động recover messages bị stuck sau 60 giây.
-

@@ -1,9 +1,14 @@
 // Core type definitions for Event Hub system
 
-export type EventStatus = 'pending' | 'processing' | 'completed' | 'failed';
-export type MessageStatus = 'pending' | 'delivering' | 'delivered' | 'failed' | 'dlq';
-export type DeliveryGuarantee = 'at_least_once' | 'at_most_once';
-export type OrderingKey = 'organization_id' | 'user_id' | null;
+export type EventStatus = "pending" | "processing" | "completed" | "failed";
+export type MessageStatus =
+  | "pending"
+  | "delivering"
+  | "delivered"
+  | "failed"
+  | "dlq";
+export type DeliveryGuarantee = "at_least_once" | "at_most_once";
+export type OrderingKey = "organization_id" | "user_id" | null;
 
 export interface Event {
   id: string;
@@ -102,9 +107,41 @@ export interface EventCreatedResponse {
 }
 
 export interface HealthCheckResponse {
-  status: 'healthy' | 'unhealthy';
+  status: "healthy" | "unhealthy";
   timestamp: string;
   uptime: number;
-  database: 'connected' | 'disconnected';
+  database: "connected" | "disconnected";
 }
 
+export interface RetryRequest {
+  retry_by: string; // User ID who initiated the retry
+}
+
+export interface RetryResponse {
+  dlq_id: string;
+  message_id: string;
+  retry_by: string;
+  retry_at: string;
+}
+
+export interface BulkRetryRequest {
+  dlq_ids: string[];
+  retry_by: string;
+}
+
+export interface BulkRetryResponse {
+  successful: Array<{
+    dlq_id: string;
+    message_id: string;
+    success: boolean;
+  }>;
+  failed: Array<{
+    dlq_id: string;
+    error: string;
+  }>;
+  summary: {
+    total_requested: number;
+    successful: number;
+    failed: number;
+  };
+}
