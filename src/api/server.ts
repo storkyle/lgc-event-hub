@@ -7,6 +7,7 @@ import { errorHandler } from "./middleware/errorHandler";
 import eventsRouter from "./routes/events";
 import healthRouter from "./routes/health";
 import dlqRouter from "./routes/dlq";
+import subscribersRouter from "./routes/subscribers";
 import { verifyXServiceToken } from "./middleware/verifyXServiceToken";
 
 const app: Express = express();
@@ -18,6 +19,7 @@ app.use(express.json({ limit: "1mb" }));
 app.use("/", verifyXServiceToken, eventsRouter);
 app.use("/", healthRouter);
 app.use("/", verifyXServiceToken, dlqRouter);
+app.use("/", verifyXServiceToken, subscribersRouter);
 
 // Error handler (must be last)
 app.use(errorHandler);

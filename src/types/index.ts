@@ -145,3 +145,43 @@ export interface BulkRetryResponse {
     failed: number;
   };
 }
+
+export interface CreateSubscriberDto {
+  name: string;
+  event_type: string;
+  webhook_url: string;
+  delivery_guarantee?: DeliveryGuarantee;
+  ordering_enabled?: boolean;
+  ordering_key?: OrderingKey;
+  retry_limit?: number;
+  retry_backoff_seconds?: number[];
+  is_active?: boolean;
+  created_by: string;
+}
+
+export interface UpdateSubscriberDto {
+  name?: string;
+  event_type?: string;
+  webhook_url?: string;
+  delivery_guarantee?: DeliveryGuarantee;
+  ordering_enabled?: boolean;
+  ordering_key?: OrderingKey;
+  retry_limit?: number;
+  retry_backoff_seconds?: number[];
+  is_active?: boolean;
+}
+
+export interface SubscriberCreatedResponse {
+  subscriber_id: string;
+  message: string;
+}
+
+export interface SubscriberUpdatedResponse {
+  subscriber_id: string;
+  message: string;
+}
+
+export interface SubscriberDeletedResponse {
+  subscriber_id: string;
+  message: string;
+}
