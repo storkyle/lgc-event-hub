@@ -1,0 +1,76 @@
+# Docker Compose override for development environment
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
+#
+# NOTE: This file extends docker-compose.yml. All environment variables,
+# including those from anchors (&db-config, &service-config) are automatically
+# inherited from docker-compose.yml and merged with the settings below.
+#
+# Environment variables can be set in a .env file in the project root.
+version: "3.8"
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    command: pnpm run dev:api:watch
+    environment:
+      # Override NODE_ENV for development
+      # All other env vars (DB_HOST, DB_NAME, etc.) are inherited from docker-compose.yml
+      NODE_ENV: development
+    volumes:
+      # Mount source code for hot reload
+      - ./src:/app/src:ro
+      - ./tsconfig.json:/app/tsconfig.json:ro
+      # Prevent node_modules from being overwritten
+      - /app/node_modules
+    # Remove resource limits for easier development
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 1G
+
+  fanout:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    command: pnpm run dev:fanout:watch
+    environment:
+      # Override NODE_ENV for development
+      # All other env vars (DB_HOST, DB_NAME, etc.) are inherited from docker-compose.yml
+      NODE_ENV: development
+    volumes:
+      # Mount source code for hot reload
+      - ./src:/app/src:ro
+      - ./tsconfig.json:/app/tsconfig.json:ro
+      # Prevent node_modules from being overwritten
+      - /app/node_modules
+    # Remove resource limits for easier development
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+
+  dispatcher:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    command: pnpm run dev:dispatcher:watch
+    environment:
+      # Override NODE_ENV for development
+      # All other env vars (DB_HOST, DB_NAME, etc.) are inherited from docker-compose.yml
+      NODE_ENV: development
+    volumes:
+      # Mount source code for hot reload
+      - ./src:/app/src:ro
+      - ./tsconfig.json:/app/tsconfig.json:ro
+      # Prevent node_modules from being overwritten
+      - /app/node_modules
+    # Remove resource limits for easier development
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 1G
