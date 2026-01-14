@@ -1,23 +1,33 @@
+x-db-config: &db-config
+  DB_HOST: postgres
+  DB_NAME: ${DB_NAME:-eventhub}
+  DB_USER: ${DB_USER:-eventhub}
+  DB_PASSWORD: ${DB_PASSWORD:-changeme}
+
+x-service-config: &service-config
+  X_SERVICE_TOKEN: ${X_SERVICE_TOKEN:-changeme}
+
 version: "3.8"
 
+name: lgc-event-hub
 services:
   postgres:
     image: postgres:16-alpine
     environment:
-      POSTGRES_DB: eventhub
-      POSTGRES_USER: eventhub
+      POSTGRES_DB: ${DB_NAME:-eventhub}
+      POSTGRES_USER: ${DB_USER:-eventhub}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-changeme}
       # Performance tuning
       POSTGRES_SHARED_BUFFERS: 2GB
       POSTGRES_EFFECTIVE_CACHE_SIZE: 6GB
       POSTGRES_WORK_MEM: 16MB
       POSTGRES_MAINTENANCE_WORK_MEM: 512MB
-      POSTGRES_MAX_CONNECTIONS: 150
+      POSTGRES_MAX_CONNECTIONS: ${DB_MAX_CONNECTIONS:-20}
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
     ports:
-      - "5432:5432"
+      - ${DB_PORT:-5432}:5432
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U eventhub"]
       interval: 10s
@@ -38,12 +48,8 @@ services:
     environment:
       NODE_HOST: 0.0.0.0
       NODE_ENV: production
-      DB_HOST: postgres
-      DB_NAME: eventhub
-      DB_USER: eventhub
-      DB_PASSWORD: ${DB_PASSWORD:-changeme}
+      <<: [*db-config, *service-config]
       PORT: 3000
-      X_SERVICE_TOKEN: ${X_SERVICE_TOKEN:-changeme}
       WORKER_ID: api-${HOSTNAME}
     ports:
       - "4004:3000"
@@ -66,11 +72,8 @@ services:
     command: pnpm run start:fanout
     environment:
       NODE_ENV: production
-      DB_HOST: postgres
-      DB_NAME: eventhub
-      DB_USER: eventhub
-      DB_PASSWORD: ${DB_PASSWORD:-changeme}
       WORKER_ID: fanout-${HOSTNAME}
+      <<: [*db-config, *service-config]
       POLL_INTERVAL_MS: 100
       BATCH_SIZE: 50
     depends_on:
@@ -91,10 +94,7 @@ services:
     command: pnpm run start:dispatcher
     environment:
       NODE_ENV: production
-      DB_HOST: postgres
-      DB_NAME: eventhub
-      DB_USER: eventhub
-      DB_PASSWORD: ${DB_PASSWORD:-changeme}
+      <<: *db-config
       WORKER_ID: dispatcher-${HOSTNAME}
       POLL_INTERVAL_MS: 100
       BATCH_SIZE: 20
@@ -118,10 +118,7 @@ services:
     command: pnpm run start:cleanup
     environment:
       NODE_ENV: production
-      DB_HOST: postgres
-      DB_NAME: eventhub
-      DB_USER: eventhub
-      DB_PASSWORD: ${DB_PASSWORD:-changeme}
+      <<: *db-config
       STALE_TIMEOUT_SECONDS: 60
       CHECK_INTERVAL_MS: 60000
     depends_on:
