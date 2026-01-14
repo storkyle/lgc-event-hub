@@ -1,0 +1,12 @@
+{
+  "quotes": true,
+  "semi": true,
+  "useTabs": false,
+  "tabWidth": 2,
+  "singleQuote": true,
+  "trailingComma": "es5",
+  "rcVerbose": true,
+  "eslintIntegration": false,
+  "printWidth": 100,
+  "endOfLine": "lf"
+}
