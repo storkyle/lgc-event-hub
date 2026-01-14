@@ -11,10 +11,10 @@ const workerLogger = logger.child({ worker: 'fanout', worker_id: workerId });
 
 async function processEvents(): Promise<void> {
   const client = await pool.connect();
-  
+
   try {
     await client.query('BEGIN');
-    
+
     // Get pending events
     const eventsResult = await client.query<Event>(
       `SELECT * FROM events 
@@ -24,14 +24,14 @@ async function processEvents(): Promise<void> {
        FOR UPDATE SKIP LOCKED`,
       [config.worker.batchSize || 50]
     );
-    
+
     if (eventsResult.rows.length === 0) {
       await client.query('ROLLBACK');
       return;
     }
 
     workerLogger.info('Processing events', { count: eventsResult.rows.length });
-    
+
     for (const event of eventsResult.rows) {
       // Find active subscribers for this event type
       const subscribersResult = await client.query<Subscriber>(
@@ -39,27 +39,27 @@ async function processEvents(): Promise<void> {
          WHERE event_type = $1 AND is_active = true`,
         [event.event_type]
       );
-      
+
       const subscribers = subscribersResult.rows;
-      
+
       if (subscribers.length === 0) {
         // No subscribers - mark event as completed
         await client.query(
           `UPDATE events SET status = 'completed', updated_at = NOW() WHERE id = $1`,
           [event.id]
         );
-        
+
         workerLogger.info('No subscribers found for event', {
           event_id: event.id,
           event_type: event.event_type,
         });
         continue;
       }
-      
+
       // Create messages for each subscriber
       for (const subscriber of subscribers) {
         const messageId = uuidv4();
-        
+
         // Extract ordering key value if ordering is enabled
         let orderingKeyValue: string | null = null;
         if (subscriber.ordering_enabled && subscriber.ordering_key) {
@@ -70,7 +70,7 @@ async function processEvents(): Promise<void> {
             orderingKeyValue = event.user_id || null;
           }
         }
-        
+
         await client.query(
           `INSERT INTO messages (
             id, event_id, subscriber_id, status, retry_count,
@@ -79,22 +79,21 @@ async function processEvents(): Promise<void> {
           [messageId, event.id, subscriber.id, orderingKeyValue]
         );
       }
-      
+
       // Update event status to processing
       await client.query(
         `UPDATE events SET status = 'processing', updated_at = NOW() WHERE id = $1`,
         [event.id]
       );
-      
+
       workerLogger.info('Created messages for event', {
         event_id: event.id,
         event_type: event.event_type,
         subscriber_count: subscribers.length,
       });
     }
-    
+
     await client.query('COMMIT');
-    
   } catch (error) {
     await client.query('ROLLBACK');
     workerLogger.error('Error processing events', {
@@ -107,14 +106,14 @@ async function processEvents(): Promise<void> {
 
 async function run(): Promise<void> {
   workerLogger.info('Fan-out worker starting');
-  
+
   // Test database connection
   const dbConnected = await testConnection();
   if (!dbConnected) {
     workerLogger.error('Failed to connect to database');
     process.exit(1);
   }
-  
+
   // Main loop
   while (true) {
     try {
@@ -124,9 +123,9 @@ async function run(): Promise<void> {
         error: error instanceof Error ? error.message : 'Unknown error',
       });
     }
-    
+
     // Wait before next poll
-    await new Promise(resolve => setTimeout(resolve, config.worker.pollIntervalMs));
+    await new Promise((resolve) => setTimeout(resolve, config.worker.pollIntervalMs));
   }
 }
 
@@ -142,4 +141,3 @@ process.on('SIGINT', () => {
 });
 
 run();
-

@@ -37,9 +37,9 @@ export const pendingMessages = new promClient.Gauge({
         WHERE status IN ('pending', 'failed')
         GROUP BY subscriber_id
       `);
-      
+
       this.reset();
-      result.rows.forEach(row => {
+      result.rows.forEach((row) => {
         this.set({ subscriber_id: row.subscriber_id }, parseInt(row.count));
       });
     } catch (error) {
@@ -53,7 +53,9 @@ export const dlqSize = new promClient.Gauge({
   help: 'Number of messages in DLQ',
   async collect() {
     try {
-      const result = await pool.query<{ count: string }>('SELECT COUNT(*) as count FROM dead_letter_queue');
+      const result = await pool.query<{ count: string }>(
+        'SELECT COUNT(*) as count FROM dead_letter_queue'
+      );
       this.set(parseInt(result.rows[0].count));
     } catch (error) {
       // Ignore metric collection errors
@@ -69,4 +71,3 @@ export const apiRequestDuration = new promClient.Histogram({
 });
 
 export const register = promClient.register;
-

@@ -13,23 +13,22 @@ async function processMessages(): Promise<void> {
   try {
     // Poll messages with ordering constraint
     const messages = await pollMessagesWithOrdering(workerId, config.worker.batchSize);
-    
+
     if (messages.length === 0) {
       return;
     }
-    
+
     workerLogger.info('Processing messages', { count: messages.length });
-    
+
     // Process messages in parallel (they are independent due to ordering constraint)
     await Promise.all(
       messages.map(async (message) => {
         try {
           // Deliver webhook
           const result = await deliverWebhook(message, workerId);
-          
+
           // Handle response (update status, retry, or DLQ)
           await handleDeliveryResponse(message, result);
-          
         } catch (error) {
           workerLogger.error('Error processing message', {
             message_id: message.id,
@@ -37,13 +36,12 @@ async function processMessages(): Promise<void> {
             subscriber_id: message.subscriber_id,
             error: error instanceof Error ? error.message : 'Unknown error',
           });
-          
+
           // On unexpected error, unlock the message so it can be retried
           // This will be handled by the cleanup worker
         }
       })
     );
-    
   } catch (error) {
     workerLogger.error('Error in processMessages', {
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -53,14 +51,14 @@ async function processMessages(): Promise<void> {
 
 async function run(): Promise<void> {
   workerLogger.info('Dispatcher worker starting');
-  
+
   // Test database connection
   const dbConnected = await testConnection();
   if (!dbConnected) {
     workerLogger.error('Failed to connect to database');
     process.exit(1);
   }
-  
+
   // Main loop
   while (true) {
     try {
@@ -70,9 +68,9 @@ async function run(): Promise<void> {
         error: error instanceof Error ? error.message : 'Unknown error',
       });
     }
-    
+
     // Wait before next poll
-    await new Promise(resolve => setTimeout(resolve, config.worker.pollIntervalMs));
+    await new Promise((resolve) => setTimeout(resolve, config.worker.pollIntervalMs));
   }
 }
 
@@ -88,4 +86,3 @@ process.on('SIGINT', () => {
 });
 
 run();
-

@@ -1,14 +1,14 @@
 // Dead Letter Queue management endpoints
-import { Router, Request, Response } from "express";
-import { pool } from "../../db/pool";
-import { DeadLetterQueueItem, ApiResponse } from "../../types";
-import { logger } from "../../utils/logger";
-import { validateRetryRequest } from "../middleware/validation";
+import { Router, Request, Response } from 'express';
+import { pool } from '../../db/pool';
+import { DeadLetterQueueItem, ApiResponse } from '../../types';
+import { logger } from '../../utils/logger';
+import { validateRetryRequest } from '../middleware/validation';
 
 const router: Router = Router();
 
 // Get all DLQ items
-router.get("/dlq", async (req: Request, res: Response) => {
+router.get('/dlq', async (req: Request, res: Response) => {
   try {
     const { limit = 50, offset = 0 } = req.query;
 
@@ -37,13 +37,13 @@ router.get("/dlq", async (req: Request, res: Response) => {
 
     res.status(200).json(response);
   } catch (error) {
-    logger.error("Error fetching DLQ items", {
-      error: error instanceof Error ? error.message : "Unknown error",
+    logger.error('Error fetching DLQ items', {
+      error: error instanceof Error ? error.message : 'Unknown error',
     });
 
     const response: ApiResponse = {
       success: false,
-      error: "Failed to fetch DLQ items",
+      error: 'Failed to fetch DLQ items',
     };
 
     res.status(500).json(response);
@@ -51,7 +51,7 @@ router.get("/dlq", async (req: Request, res: Response) => {
 });
 
 // Get specific DLQ item by ID
-router.get("/dlq/:id", async (req: Request, res: Response) => {
+router.get('/dlq/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
@@ -75,7 +75,7 @@ router.get("/dlq/:id", async (req: Request, res: Response) => {
     if (result.rows.length === 0) {
       const response: ApiResponse = {
         success: false,
-        error: "DLQ item not found",
+        error: 'DLQ item not found',
       };
       return res.status(404).json(response);
     }
@@ -88,14 +88,14 @@ router.get("/dlq/:id", async (req: Request, res: Response) => {
     res.status(200).json(response);
     return;
   } catch (error) {
-    logger.error("Error fetching DLQ item", {
+    logger.error('Error fetching DLQ item', {
       dlq_id: req.params.id,
-      error: error instanceof Error ? error.message : "Unknown error",
+      error: error instanceof Error ? error.message : 'Unknown error',
     });
 
     const response: ApiResponse = {
       success: false,
-      error: "Failed to fetch DLQ item",
+      error: 'Failed to fetch DLQ item',
     };
 
     res.status(500).json(response);
@@ -104,21 +104,18 @@ router.get("/dlq/:id", async (req: Request, res: Response) => {
 });
 
 // Manual retry DLQ item
-router.post(
-  "/dlq/:id/retry",
-  validateRetryRequest,
-  async (req: Request, res: Response) => {
-    const client = await pool.connect();
+router.post('/dlq/:id/retry', validateRetryRequest, async (req: Request, res: Response) => {
+  const client = await pool.connect();
 
-    try {
-      const { id } = req.params;
-      const { retry_by } = req.body; // User ID who initiated the retry
+  try {
+    const { id } = req.params;
+    const { retry_by } = req.body; // User ID who initiated the retry
 
-      await client.query("BEGIN");
+    await client.query('BEGIN');
 
-      // Get DLQ item
-      const dlqResult = await client.query<DeadLetterQueueItem>(
-        `
+    // Get DLQ item
+    const dlqResult = await client.query<DeadLetterQueueItem>(
+      `
       SELECT
         dlq.id,
         dlq.message_id,
@@ -129,52 +126,52 @@ router.post(
       WHERE dlq.id = $1
       FOR UPDATE
     `,
-        [id]
-      );
+      [id]
+    );
 
-      if (dlqResult.rows.length === 0) {
-        await client.query("ROLLBACK");
-        const response: ApiResponse = {
-          success: false,
-          error: "DLQ item not found",
-        };
-        return res.status(404).json(response);
-      }
+    if (dlqResult.rows.length === 0) {
+      await client.query('ROLLBACK');
+      const response: ApiResponse = {
+        success: false,
+        error: 'DLQ item not found',
+      };
+      return res.status(404).json(response);
+    }
 
-      const dlqItem = dlqResult.rows[0];
+    const dlqItem = dlqResult.rows[0];
 
-      // Check if already retried
-      if (dlqItem.manual_retry_by) {
-        await client.query("ROLLBACK");
-        const response: ApiResponse = {
-          success: false,
-          error: "DLQ item has already been manually retried",
-        };
-        return res.status(409).json(response);
-      }
+    // Check if already retried
+    if (dlqItem.manual_retry_by) {
+      await client.query('ROLLBACK');
+      const response: ApiResponse = {
+        success: false,
+        error: 'DLQ item has already been manually retried',
+      };
+      return res.status(409).json(response);
+    }
 
-      // Check if message still exists and is in DLQ status
-      const messageResult = await client.query(
-        `
+    // Check if message still exists and is in DLQ status
+    const messageResult = await client.query(
+      `
       SELECT id, status FROM messages
       WHERE id = $1 AND status = 'dlq'
       FOR UPDATE
     `,
-        [dlqItem.message_id]
-      );
+      [dlqItem.message_id]
+    );
 
-      if (messageResult.rows.length === 0) {
-        await client.query("ROLLBACK");
-        const response: ApiResponse = {
-          success: false,
-          error: "Message not found or not in DLQ status",
-        };
-        return res.status(404).json(response);
-      }
+    if (messageResult.rows.length === 0) {
+      await client.query('ROLLBACK');
+      const response: ApiResponse = {
+        success: false,
+        error: 'Message not found or not in DLQ status',
+      };
+      return res.status(404).json(response);
+    }
 
-      // Reset message for retry
-      await client.query(
-        `
+    // Reset message for retry
+    await client.query(
+      `
       UPDATE messages
       SET
         status = 'pending',
@@ -185,92 +182,88 @@ router.post(
         updated_at = NOW()
       WHERE id = $1
     `,
-        [dlqItem.message_id]
-      );
+      [dlqItem.message_id]
+    );
 
-      // Update DLQ item with retry info
-      await client.query(
-        `
+    // Update DLQ item with retry info
+    await client.query(
+      `
       UPDATE dead_letter_queue
       SET
         manual_retry_by = $1,
         manual_retry_at = NOW()
       WHERE id = $2
     `,
-        [retry_by, id]
-      );
+      [retry_by, id]
+    );
 
-      await client.query("COMMIT");
+    await client.query('COMMIT');
 
-      logger.info("DLQ item manually retried", {
+    logger.info('DLQ item manually retried', {
+      dlq_id: id,
+      message_id: dlqItem.message_id,
+      retry_by,
+    });
+
+    const response: ApiResponse = {
+      success: true,
+      message: 'DLQ item successfully queued for retry',
+      data: {
         dlq_id: id,
         message_id: dlqItem.message_id,
         retry_by,
-      });
+        retry_at: new Date().toISOString(),
+      },
+    };
 
-      const response: ApiResponse = {
-        success: true,
-        message: "DLQ item successfully queued for retry",
-        data: {
-          dlq_id: id,
-          message_id: dlqItem.message_id,
-          retry_by,
-          retry_at: new Date().toISOString(),
-        },
-      };
+    res.status(200).json(response);
+    return;
+  } catch (error) {
+    await client.query('ROLLBACK');
 
-      res.status(200).json(response);
-      return;
-    } catch (error) {
-      await client.query("ROLLBACK");
+    logger.error('Error retrying DLQ item', {
+      dlq_id: req.params.id,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
 
-      logger.error("Error retrying DLQ item", {
-        dlq_id: req.params.id,
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
+    const response: ApiResponse = {
+      success: false,
+      error: 'Failed to retry DLQ item',
+    };
 
-      const response: ApiResponse = {
-        success: false,
-        error: "Failed to retry DLQ item",
-      };
-
-      res.status(500).json(response);
-      return;
-    } finally {
-      client.release();
-    }
+    res.status(500).json(response);
+    return;
+  } finally {
+    client.release();
   }
-);
+});
 
 // Bulk retry multiple DLQ items
-router.post(
-  "/dlq/bulk-retry",
-  validateRetryRequest,
-  async (req: Request, res: Response) => {
-    const client = await pool.connect();
+router.post('/dlq/bulk-retry', validateRetryRequest, async (req: Request, res: Response) => {
+  const client = await pool.connect();
 
-    try {
-      const { dlq_ids, retry_by } = req.body;
+  try {
+    const { dlq_ids, retry_by } = req.body;
 
-      if (!Array.isArray(dlq_ids) || dlq_ids.length === 0) {
-        const response: ApiResponse = {
-          success: false,
-          error: "dlq_ids must be a non-empty array",
-        };
+    if (!Array.isArray(dlq_ids) || dlq_ids.length === 0) {
+      const response: ApiResponse = {
+        success: false,
+        error: 'dlq_ids must be a non-empty array',
+      };
 
-        return res.status(400).json(response);
-      }
+      return res.status(400).json(response);
+    }
 
-      await client.query("BEGIN");
+    await client.query('BEGIN');
 
-      const results = [];
-      const errors = [];
+    const results = [];
+    const errors = [];
 
-      for (const dlqId of dlq_ids) {
-        try {
-          // Get DLQ item
-          const dlqResult = await client.query<DeadLetterQueueItem>(
-            `
+    for (const dlqId of dlq_ids) {
+      try {
+        // Get DLQ item
+        const dlqResult = await client.query<DeadLetterQueueItem>(
+          `
           SELECT
             dlq.id,
             dlq.message_id,
@@ -282,43 +275,43 @@ router.post(
           WHERE dlq.id = $1
           FOR UPDATE
         `,
-            [dlqId]
-          );
+          [dlqId]
+        );
 
-          if (dlqResult.rows.length === 0) {
-            errors.push({ dlq_id: dlqId, error: "DLQ item not found" });
-            continue;
-          }
+        if (dlqResult.rows.length === 0) {
+          errors.push({ dlq_id: dlqId, error: 'DLQ item not found' });
+          continue;
+        }
 
-          const dlqItem = dlqResult.rows[0];
+        const dlqItem = dlqResult.rows[0];
 
-          // Check if already retried
-          if (dlqItem.manual_retry_by) {
-            errors.push({ dlq_id: dlqId, error: "Already manually retried" });
-            continue;
-          }
+        // Check if already retried
+        if (dlqItem.manual_retry_by) {
+          errors.push({ dlq_id: dlqId, error: 'Already manually retried' });
+          continue;
+        }
 
-          // Check if message still exists and is in DLQ status
-          const messageResult = await client.query(
-            `
+        // Check if message still exists and is in DLQ status
+        const messageResult = await client.query(
+          `
           SELECT id, status FROM messages
           WHERE id = $1 AND status = 'dlq'
           FOR UPDATE
         `,
-            [dlqItem.message_id]
-          );
+          [dlqItem.message_id]
+        );
 
-          if (messageResult.rows.length === 0) {
-            errors.push({
-              dlq_id: dlqId,
-              error: "Message not found or not in DLQ status",
-            });
-            continue;
-          }
+        if (messageResult.rows.length === 0) {
+          errors.push({
+            dlq_id: dlqId,
+            error: 'Message not found or not in DLQ status',
+          });
+          continue;
+        }
 
-          // Reset message for retry
-          await client.query(
-            `
+        // Reset message for retry
+        await client.query(
+          `
           UPDATE messages
           SET
             status = 'pending',
@@ -329,78 +322,77 @@ router.post(
             updated_at = NOW()
           WHERE id = $1
         `,
-            [dlqItem.message_id]
-          );
+          [dlqItem.message_id]
+        );
 
-          // Update DLQ item with retry info
-          await client.query(
-            `
+        // Update DLQ item with retry info
+        await client.query(
+          `
           UPDATE dead_letter_queue
           SET
             manual_retry_by = $1,
             manual_retry_at = NOW()
           WHERE id = $2
         `,
-            [retry_by, dlqId]
-          );
+          [retry_by, dlqId]
+        );
 
-          results.push({
-            dlq_id: dlqId,
-            message_id: dlqItem.message_id,
-            success: true,
-          });
-        } catch (error) {
-          errors.push({
-            dlq_id: dlqId,
-            error: error instanceof Error ? error.message : "Unknown error",
-          });
-          return;
-        }
+        results.push({
+          dlq_id: dlqId,
+          message_id: dlqItem.message_id,
+          success: true,
+        });
+      } catch (error) {
+        errors.push({
+          dlq_id: dlqId,
+          error: error instanceof Error ? error.message : 'Unknown error',
+        });
+        return;
       }
-
-      await client.query("COMMIT");
-
-      logger.info("Bulk DLQ retry completed", {
-        total_requested: dlq_ids.length,
-        successful: results.length,
-        failed: errors.length,
-        retry_by,
-      });
-
-      const response: ApiResponse = {
-        success: true,
-        message: `Bulk retry completed: ${results.length} successful, ${errors.length} failed`,
-        data: {
-          successful: results,
-          failed: errors,
-          summary: {
-            total_requested: dlq_ids.length,
-            successful: results.length,
-            failed: errors.length,
-          },
-        },
-      };
-
-      res.status(200).json(response);
-      return;
-    } catch (error) {
-      await client.query("ROLLBACK");
-
-      logger.error("Error in bulk DLQ retry", {
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-
-      const response: ApiResponse = {
-        success: false,
-        error: "Failed to perform bulk retry",
-      };
-
-      res.status(500).json(response);
-      return;
-    } finally {
-      client.release();
     }
+
+    await client.query('COMMIT');
+
+    logger.info('Bulk DLQ retry completed', {
+      total_requested: dlq_ids.length,
+      successful: results.length,
+      failed: errors.length,
+      retry_by,
+    });
+
+    const response: ApiResponse = {
+      success: true,
+      message: `Bulk retry completed: ${results.length} successful, ${errors.length} failed`,
+      data: {
+        successful: results,
+        failed: errors,
+        summary: {
+          total_requested: dlq_ids.length,
+          successful: results.length,
+          failed: errors.length,
+        },
+      },
+    };
+
+    res.status(200).json(response);
+    return;
+  } catch (error) {
+    await client.query('ROLLBACK');
+
+    logger.error('Error in bulk DLQ retry', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+
+    const response: ApiResponse = {
+      success: false,
+      error: 'Failed to perform bulk retry',
+    };
+
+    res.status(500).json(response);
+    return;
+  } finally {
+    client.release();
   }
-);
+});
 
 export default router;

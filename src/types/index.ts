@@ -1,14 +1,9 @@
 // Core type definitions for Event Hub system
 
-export type EventStatus = "pending" | "processing" | "completed" | "failed";
-export type MessageStatus =
-  | "pending"
-  | "delivering"
-  | "delivered"
-  | "failed"
-  | "dlq";
-export type DeliveryGuarantee = "at_least_once" | "at_most_once";
-export type OrderingKey = "organization_id" | "user_id" | null;
+export type EventStatus = 'pending' | 'processing' | 'completed' | 'failed';
+export type MessageStatus = 'pending' | 'delivering' | 'delivered' | 'failed' | 'dlq';
+export type DeliveryGuarantee = 'at_least_once' | 'at_most_once';
+export type OrderingKey = 'organization_id' | 'user_id' | null;
 
 export interface Event {
   id: string;
@@ -107,10 +102,10 @@ export interface EventCreatedResponse {
 }
 
 export interface HealthCheckResponse {
-  status: "healthy" | "unhealthy";
+  status: 'healthy' | 'unhealthy';
   timestamp: string;
   uptime: number;
-  database: "connected" | "disconnected";
+  database: 'connected' | 'disconnected';
 }
 
 export interface RetryRequest {

@@ -1,6 +1,6 @@
 // Database queries for workers
-import { pool } from "./pool";
-import { Event, Subscriber } from "../types";
+import { pool } from './pool';
+import { Event, Subscriber } from '../types';
 
 // Fan-out worker queries
 export async function getPendingEvents(limit: number): Promise<Event[]> {
@@ -15,9 +15,7 @@ export async function getPendingEvents(limit: number): Promise<Event[]> {
   return result.rows;
 }
 
-export async function getActiveSubscribers(
-  eventType: string
-): Promise<Subscriber[]> {
+export async function getActiveSubscribers(eventType: string): Promise<Subscriber[]> {
   const result = await pool.query<Subscriber>(
     `SELECT * FROM subscribers
      WHERE event_type = $1 AND is_active = true`,
@@ -26,14 +24,11 @@ export async function getActiveSubscribers(
   return result.rows;
 }
 
-export async function updateEventStatus(
-  eventId: string,
-  status: string
-): Promise<void> {
-  await pool.query(
-    "UPDATE events SET status = $1, updated_at = NOW() WHERE id = $2",
-    [status, eventId]
-  );
+export async function updateEventStatus(eventId: string, status: string): Promise<void> {
+  await pool.query('UPDATE events SET status = $1, updated_at = NOW() WHERE id = $2', [
+    status,
+    eventId,
+  ]);
 }
 
 // Check if all messages for an event are delivered

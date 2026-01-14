@@ -9,10 +9,8 @@ const workerLogger = logger.child({ worker: 'cleanup', worker_id: workerId });
 
 async function cleanupStaleMessages(): Promise<void> {
   try {
-    const staleThreshold = new Date(
-      Date.now() - config.worker.staleTimeoutSeconds * 1000
-    );
-    
+    const staleThreshold = new Date(Date.now() - config.worker.staleTimeoutSeconds * 1000);
+
     const result = await pool.query(
       `UPDATE messages
        SET status = 'failed',
@@ -25,13 +23,13 @@ async function cleanupStaleMessages(): Promise<void> {
        RETURNING id, event_id, subscriber_id, locked_by, locked_at`,
       [staleThreshold]
     );
-    
+
     if (result.rows.length > 0) {
       workerLogger.warn('Recovered stale messages', {
         count: result.rows.length,
         messages: result.rows,
       });
-      
+
       // Log each stale message for alerting
       for (const row of result.rows) {
         workerLogger.warn('Stale message detected', {
@@ -43,7 +41,6 @@ async function cleanupStaleMessages(): Promise<void> {
         });
       }
     }
-    
   } catch (error) {
     workerLogger.error('Error cleaning up stale messages', {
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -56,14 +53,14 @@ async function run(): Promise<void> {
     stale_timeout_seconds: config.worker.staleTimeoutSeconds,
     check_interval_ms: config.worker.checkIntervalMs,
   });
-  
+
   // Test database connection
   const dbConnected = await testConnection();
   if (!dbConnected) {
     workerLogger.error('Failed to connect to database');
     process.exit(1);
   }
-  
+
   // Main loop
   while (true) {
     try {
@@ -73,9 +70,9 @@ async function run(): Promise<void> {
         error: error instanceof Error ? error.message : 'Unknown error',
       });
     }
-    
+
     // Wait before next check
-    await new Promise(resolve => setTimeout(resolve, config.worker.checkIntervalMs));
+    await new Promise((resolve) => setTimeout(resolve, config.worker.checkIntervalMs));
   }
 }
 
@@ -91,4 +88,3 @@ process.on('SIGINT', () => {
 });
 
 run();
-

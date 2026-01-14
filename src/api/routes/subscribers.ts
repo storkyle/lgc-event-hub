@@ -1,6 +1,6 @@
 // Subscriber CRUD endpoints
-import { Router, Request, Response } from "express";
-import { pool } from "../../db/pool";
+import { Router, Request, Response } from 'express';
+import { pool } from '../../db/pool';
 import {
   Subscriber,
   ApiResponse,
@@ -9,18 +9,15 @@ import {
   SubscriberCreatedResponse,
   SubscriberUpdatedResponse,
   SubscriberDeletedResponse,
-} from "../../types";
-import { logger } from "../../utils/logger";
-import {
-  validateCreateSubscriber,
-  validateUpdateSubscriber,
-} from "../middleware/validation";
-import { v4 as uuidv4 } from "uuid";
+} from '../../types';
+import { logger } from '../../utils/logger';
+import { validateCreateSubscriber, validateUpdateSubscriber } from '../middleware/validation';
+import { v4 as uuidv4 } from 'uuid';
 
 const router: Router = Router();
 
 // Get all subscribers
-router.get("/subscribers", async (req: Request, res: Response) => {
+router.get('/subscribers', async (req: Request, res: Response) => {
   try {
     const { limit = 50, offset = 0, event_type, is_active } = req.query;
 
@@ -54,12 +51,10 @@ router.get("/subscribers", async (req: Request, res: Response) => {
     if (is_active !== undefined) {
       paramCount++;
       query += ` AND is_active = $${paramCount}`;
-      params.push(is_active === "true");
+      params.push(is_active === 'true');
     }
 
-    query += ` ORDER BY created_at DESC LIMIT $${paramCount + 1} OFFSET $${
-      paramCount + 2
-    }`;
+    query += ` ORDER BY created_at DESC LIMIT $${paramCount + 1} OFFSET $${paramCount + 2}`;
     params.push(parseInt(limit as string), parseInt(offset as string));
 
     const result = await pool.query<Subscriber>(query, params);
@@ -72,13 +67,13 @@ router.get("/subscribers", async (req: Request, res: Response) => {
     res.status(200).json(response);
     return;
   } catch (error) {
-    logger.error("Error fetching subscribers", {
-      error: error instanceof Error ? error.message : "Unknown error",
+    logger.error('Error fetching subscribers', {
+      error: error instanceof Error ? error.message : 'Unknown error',
     });
 
     const response: ApiResponse = {
       success: false,
-      error: "Failed to fetch subscribers",
+      error: 'Failed to fetch subscribers',
     };
 
     res.status(500).json(response);
@@ -87,7 +82,7 @@ router.get("/subscribers", async (req: Request, res: Response) => {
 });
 
 // Get specific subscriber by ID
-router.get("/subscribers/:id", async (req: Request, res: Response) => {
+router.get('/subscribers/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
@@ -116,7 +111,7 @@ router.get("/subscribers/:id", async (req: Request, res: Response) => {
     if (result.rows.length === 0) {
       const response: ApiResponse = {
         success: false,
-        error: "Subscriber not found",
+        error: 'Subscriber not found',
       };
       return res.status(404).json(response);
     }
@@ -129,14 +124,14 @@ router.get("/subscribers/:id", async (req: Request, res: Response) => {
     res.status(200).json(response);
     return;
   } catch (error) {
-    logger.error("Error fetching subscriber", {
+    logger.error('Error fetching subscriber', {
       subscriber_id: req.params.id,
-      error: error instanceof Error ? error.message : "Unknown error",
+      error: error instanceof Error ? error.message : 'Unknown error',
     });
 
     const response: ApiResponse = {
       success: false,
-      error: "Failed to fetch subscriber",
+      error: 'Failed to fetch subscriber',
     };
 
     res.status(500).json(response);
@@ -145,28 +140,25 @@ router.get("/subscribers/:id", async (req: Request, res: Response) => {
 });
 
 // Create new subscriber
-router.post(
-  "/subscribers",
-  validateCreateSubscriber,
-  async (req: Request, res: Response) => {
-    try {
-      const {
-        name,
-        event_type,
-        webhook_url,
-        delivery_guarantee = "at_least_once",
-        ordering_enabled = false,
-        ordering_key = null,
-        retry_limit = 3,
-        retry_backoff_seconds = [5, 30, 300],
-        is_active = true,
-        created_by,
-      }: CreateSubscriberDto = req.body;
+router.post('/subscribers', validateCreateSubscriber, async (req: Request, res: Response) => {
+  try {
+    const {
+      name,
+      event_type,
+      webhook_url,
+      delivery_guarantee = 'at_least_once',
+      ordering_enabled = false,
+      ordering_key = null,
+      retry_limit = 3,
+      retry_backoff_seconds = [5, 30, 300],
+      is_active = true,
+      created_by,
+    }: CreateSubscriberDto = req.body;
 
-      const subscriberId = uuidv4();
+    const subscriberId = uuidv4();
 
-      await pool.query(
-        `
+    await pool.query(
+      `
         INSERT INTO subscribers (
           id, name, event_type, webhook_url, delivery_guarantee,
           ordering_enabled, ordering_key, retry_limit, retry_backoff_seconds,
@@ -174,148 +166,143 @@ router.post(
         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW())
         RETURNING id
       `,
-        [
-          subscriberId,
-          name,
-          event_type,
-          webhook_url,
-          delivery_guarantee,
-          ordering_enabled,
-          ordering_key,
-          retry_limit,
-          retry_backoff_seconds,
-          is_active,
-          created_by,
-        ]
-      );
-
-      logger.info("Subscriber created", {
-        subscriber_id: subscriberId,
+      [
+        subscriberId,
         name,
         event_type,
         webhook_url,
+        delivery_guarantee,
+        ordering_enabled,
+        ordering_key,
+        retry_limit,
+        retry_backoff_seconds,
+        is_active,
         created_by,
-      });
+      ]
+    );
 
-      const response: ApiResponse<SubscriberCreatedResponse> = {
-        success: true,
-        message: "Subscriber created successfully",
-        data: {
-          subscriber_id: subscriberId,
-          message: "Subscriber created successfully",
-        },
-      };
+    logger.info('Subscriber created', {
+      subscriber_id: subscriberId,
+      name,
+      event_type,
+      webhook_url,
+      created_by,
+    });
 
-      res.status(201).json(response);
-      return;
-    } catch (error) {
-      logger.error("Error creating subscriber", {
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
+    const response: ApiResponse<SubscriberCreatedResponse> = {
+      success: true,
+      message: 'Subscriber created successfully',
+      data: {
+        subscriber_id: subscriberId,
+        message: 'Subscriber created successfully',
+      },
+    };
 
-      const response: ApiResponse = {
-        success: false,
-        error: "Failed to create subscriber",
-      };
+    res.status(201).json(response);
+    return;
+  } catch (error) {
+    logger.error('Error creating subscriber', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
 
-      res.status(500).json(response);
-      return;
-    }
+    const response: ApiResponse = {
+      success: false,
+      error: 'Failed to create subscriber',
+    };
+
+    res.status(500).json(response);
+    return;
   }
-);
+});
 
 // Update subscriber
-router.put(
-  "/subscribers/:id",
-  validateUpdateSubscriber,
-  async (req: Request, res: Response) => {
-    try {
-      const { id } = req.params;
-      const updateData: UpdateSubscriberDto = req.body;
+router.put('/subscribers/:id', validateUpdateSubscriber, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const updateData: UpdateSubscriberDto = req.body;
 
-      // Build dynamic update query
-      const updateFields: string[] = [];
-      const params: any[] = [];
-      let paramCount = 0;
+    // Build dynamic update query
+    const updateFields: string[] = [];
+    const params: any[] = [];
+    let paramCount = 0;
 
-      Object.entries(updateData).forEach(([key, value]) => {
-        if (value !== undefined) {
-          paramCount++;
-          updateFields.push(`${key} = $${paramCount}`);
-          params.push(value);
-        }
-      });
-
-      if (updateFields.length === 0) {
-        const response: ApiResponse = {
-          success: false,
-          error: "No fields to update",
-        };
-        return res.status(400).json(response);
+    Object.entries(updateData).forEach(([key, value]) => {
+      if (value !== undefined) {
+        paramCount++;
+        updateFields.push(`${key} = $${paramCount}`);
+        params.push(value);
       }
+    });
 
-      // Add updated_at
-      paramCount++;
-      updateFields.push(`updated_at = $${paramCount}`);
-      params.push(new Date());
+    if (updateFields.length === 0) {
+      const response: ApiResponse = {
+        success: false,
+        error: 'No fields to update',
+      };
+      return res.status(400).json(response);
+    }
 
-      // Add id parameter
-      paramCount++;
-      params.push(id);
+    // Add updated_at
+    paramCount++;
+    updateFields.push(`updated_at = $${paramCount}`);
+    params.push(new Date());
 
-      const result = await pool.query(
-        `
+    // Add id parameter
+    paramCount++;
+    params.push(id);
+
+    const result = await pool.query(
+      `
         UPDATE subscribers
-        SET ${updateFields.join(", ")}
+        SET ${updateFields.join(', ')}
         WHERE id = $${paramCount}
         RETURNING id
       `,
-        params
-      );
+      params
+    );
 
-      if (result.rows.length === 0) {
-        const response: ApiResponse = {
-          success: false,
-          error: "Subscriber not found",
-        };
-        return res.status(404).json(response);
-      }
-
-      logger.info("Subscriber updated", {
-        subscriber_id: id,
-        updated_fields: Object.keys(updateData),
-      });
-
-      const response: ApiResponse<SubscriberUpdatedResponse> = {
-        success: true,
-        message: "Subscriber updated successfully",
-        data: {
-          subscriber_id: id,
-          message: "Subscriber updated successfully",
-        },
-      };
-
-      res.status(200).json(response);
-      return;
-    } catch (error) {
-      logger.error("Error updating subscriber", {
-        subscriber_id: req.params.id,
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-
+    if (result.rows.length === 0) {
       const response: ApiResponse = {
         success: false,
-        error: "Failed to update subscriber",
+        error: 'Subscriber not found',
       };
-
-      res.status(500).json(response);
-      return;
+      return res.status(404).json(response);
     }
+
+    logger.info('Subscriber updated', {
+      subscriber_id: id,
+      updated_fields: Object.keys(updateData),
+    });
+
+    const response: ApiResponse<SubscriberUpdatedResponse> = {
+      success: true,
+      message: 'Subscriber updated successfully',
+      data: {
+        subscriber_id: id,
+        message: 'Subscriber updated successfully',
+      },
+    };
+
+    res.status(200).json(response);
+    return;
+  } catch (error) {
+    logger.error('Error updating subscriber', {
+      subscriber_id: req.params.id,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+
+    const response: ApiResponse = {
+      success: false,
+      error: 'Failed to update subscriber',
+    };
+
+    res.status(500).json(response);
+    return;
   }
-);
+});
 
 // Delete subscriber (soft delete by setting is_active = false)
-router.delete("/subscribers/:id", async (req: Request, res: Response) => {
+router.delete('/subscribers/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
@@ -332,35 +319,35 @@ router.delete("/subscribers/:id", async (req: Request, res: Response) => {
     if (result.rows.length === 0) {
       const response: ApiResponse = {
         success: false,
-        error: "Subscriber not found or already inactive",
+        error: 'Subscriber not found or already inactive',
       };
       return res.status(404).json(response);
     }
 
-    logger.info("Subscriber deactivated", {
+    logger.info('Subscriber deactivated', {
       subscriber_id: id,
     });
 
     const response: ApiResponse<SubscriberDeletedResponse> = {
       success: true,
-      message: "Subscriber deactivated successfully",
+      message: 'Subscriber deactivated successfully',
       data: {
         subscriber_id: id,
-        message: "Subscriber deactivated successfully",
+        message: 'Subscriber deactivated successfully',
       },
     };
 
     res.status(200).json(response);
     return;
   } catch (error) {
-    logger.error("Error deactivating subscriber", {
+    logger.error('Error deactivating subscriber', {
       subscriber_id: req.params.id,
-      error: error instanceof Error ? error.message : "Unknown error",
+      error: error instanceof Error ? error.message : 'Unknown error',
     });
 
     const response: ApiResponse = {
       success: false,
-      error: "Failed to deactivate subscriber",
+      error: 'Failed to deactivate subscriber',
     };
 
     res.status(500).json(response);
@@ -369,7 +356,7 @@ router.delete("/subscribers/:id", async (req: Request, res: Response) => {
 });
 
 // Hard delete subscriber (permanent removal)
-router.delete("/subscribers/:id/hard", async (req: Request, res: Response) => {
+router.delete('/subscribers/:id/hard', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
@@ -404,35 +391,35 @@ router.delete("/subscribers/:id/hard", async (req: Request, res: Response) => {
     if (result.rows.length === 0) {
       const response: ApiResponse = {
         success: false,
-        error: "Subscriber not found",
+        error: 'Subscriber not found',
       };
       return res.status(404).json(response);
     }
 
-    logger.warn("Subscriber permanently deleted", {
+    logger.warn('Subscriber permanently deleted', {
       subscriber_id: id,
     });
 
     const response: ApiResponse<SubscriberDeletedResponse> = {
       success: true,
-      message: "Subscriber permanently deleted",
+      message: 'Subscriber permanently deleted',
       data: {
         subscriber_id: id,
-        message: "Subscriber permanently deleted",
+        message: 'Subscriber permanently deleted',
       },
     };
 
     res.status(200).json(response);
     return;
   } catch (error) {
-    logger.error("Error permanently deleting subscriber", {
+    logger.error('Error permanently deleting subscriber', {
       subscriber_id: req.params.id,
-      error: error instanceof Error ? error.message : "Unknown error",
+      error: error instanceof Error ? error.message : 'Unknown error',
     });
 
     const response: ApiResponse = {
       success: false,
-      error: "Failed to permanently delete subscriber",
+      error: 'Failed to permanently delete subscriber',
     };
 
     res.status(500).json(response);
@@ -441,60 +428,57 @@ router.delete("/subscribers/:id/hard", async (req: Request, res: Response) => {
 });
 
 // Reactivate subscriber
-router.post(
-  "/subscribers/:id/reactivate",
-  async (req: Request, res: Response) => {
-    try {
-      const { id } = req.params;
+router.post('/subscribers/:id/reactivate', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
 
-      const result = await pool.query(
-        `
+    const result = await pool.query(
+      `
       UPDATE subscribers
       SET is_active = true, updated_at = NOW()
       WHERE id = $1 AND is_active = false
       RETURNING id
     `,
-        [id]
-      );
+      [id]
+    );
 
-      if (result.rows.length === 0) {
-        const response: ApiResponse = {
-          success: false,
-          error: "Subscriber not found or already active",
-        };
-        return res.status(404).json(response);
-      }
-
-      logger.info("Subscriber reactivated", {
-        subscriber_id: id,
-      });
-
-      const response: ApiResponse<SubscriberUpdatedResponse> = {
-        success: true,
-        message: "Subscriber reactivated successfully",
-        data: {
-          subscriber_id: id,
-          message: "Subscriber reactivated successfully",
-        },
-      };
-
-      res.status(200).json(response);
-      return;
-    } catch (error) {
-      logger.error("Error reactivating subscriber", {
-        subscriber_id: req.params.id,
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-
+    if (result.rows.length === 0) {
       const response: ApiResponse = {
         success: false,
-        error: "Failed to reactivate subscriber",
+        error: 'Subscriber not found or already active',
       };
-
-      res.status(500).json(response);
-      return;
+      return res.status(404).json(response);
     }
+
+    logger.info('Subscriber reactivated', {
+      subscriber_id: id,
+    });
+
+    const response: ApiResponse<SubscriberUpdatedResponse> = {
+      success: true,
+      message: 'Subscriber reactivated successfully',
+      data: {
+        subscriber_id: id,
+        message: 'Subscriber reactivated successfully',
+      },
+    };
+
+    res.status(200).json(response);
+    return;
+  } catch (error) {
+    logger.error('Error reactivating subscriber', {
+      subscriber_id: req.params.id,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+
+    const response: ApiResponse = {
+      success: false,
+      error: 'Failed to reactivate subscriber',
+    };
+
+    res.status(500).json(response);
+    return;
   }
-);
+});
 
 export default router;

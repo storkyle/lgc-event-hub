@@ -7,12 +7,13 @@ export async function pollMessagesWithOrdering(
   limit: number = 20
 ): Promise<MessageWithDetails[]> {
   const client = await pool.connect();
-  
+
   try {
     await client.query('BEGIN');
-    
+
     // CRITICAL: Ordering query (Solution 1)
-    const result = await client.query<MessageWithDetails>(`
+    const result = await client.query<MessageWithDetails>(
+      `
       WITH deliverable AS (
         SELECT m.id
         FROM messages m
@@ -45,29 +46,33 @@ export async function pollMessagesWithOrdering(
       JOIN messages m ON d.id = m.id
       JOIN events e ON m.event_id = e.id
       JOIN subscribers s ON m.subscriber_id = s.id
-    `, [limit]);
-    
+    `,
+      [limit]
+    );
+
     if (result.rows.length === 0) {
       await client.query('ROLLBACK');
       return [];
     }
-    
+
     // Lock messages atomically
-    const messageIds = result.rows.map(r => r.id);
-    
-    await client.query(`
+    const messageIds = result.rows.map((r) => r.id);
+
+    await client.query(
+      `
       UPDATE messages
       SET status = 'delivering',
           locked_by = $1,
           locked_at = NOW(),
           updated_at = NOW()
       WHERE id = ANY($2)
-    `, [workerId, messageIds]);
-    
+    `,
+      [workerId, messageIds]
+    );
+
     await client.query('COMMIT');
-    
+
     return result.rows;
-    
   } catch (error) {
     await client.query('ROLLBACK');
     throw error;
@@ -75,4 +80,3 @@ export async function pollMessagesWithOrdering(
     client.release();
   }
 }
-

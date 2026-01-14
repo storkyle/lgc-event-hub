@@ -9,12 +9,12 @@ const poolConfig: PoolConfig = {
   user: config.db.user,
   password: config.db.password,
   port: config.db.port,
-  
+
   // Pool settings
   max: config.db.maxConnections,
   idleTimeoutMillis: config.db.idleTimeoutMillis,
   connectionTimeoutMillis: config.db.connectionTimeoutMillis,
-  
+
   // Query settings
   statement_timeout: config.db.statementTimeout,
 };
@@ -38,8 +38,8 @@ export async function testConnection(): Promise<boolean> {
     logger.info('Database connection successful', { time: result.rows[0].now });
     return true;
   } catch (error) {
-    logger.error('Database connection failed', { 
-      error: error instanceof Error ? error.message : 'Unknown error' 
+    logger.error('Database connection failed', {
+      error: error instanceof Error ? error.message : 'Unknown error',
     });
     return false;
   }
@@ -61,4 +61,3 @@ process.on('SIGINT', async () => {
   await shutdown();
   process.exit(0);
 });
-

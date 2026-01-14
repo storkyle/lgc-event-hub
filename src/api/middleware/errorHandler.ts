@@ -46,4 +46,3 @@ export function errorHandler(
     error: 'Internal server error',
   });
 }
-

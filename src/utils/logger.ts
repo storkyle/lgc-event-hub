@@ -66,4 +66,3 @@ export const logger = new Logger();
 export function createLogger(context: LogContext): Logger {
   return new Logger(context);
 }
-
